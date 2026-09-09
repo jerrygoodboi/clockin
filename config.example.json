@@ -1,0 +1,7 @@
+{
+  "subdomain": "YOUR_COMPANY_SUBDOMAIN",
+  "chrome_path": "",
+  "random_jitter_minutes": 2,
+  "notify_desktop": true,
+  "skip_dates": []
+}

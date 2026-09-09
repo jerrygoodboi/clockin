@@ -1,0 +1,23 @@
+# Persistent browser profile containing cookies and login sessions (NEVER COMMIT)
+.keka_profile/
+
+# Personal / company specific configuration
+config.json
+
+# Local attendance execution logs & visual proof screenshots
+*.log
+keka.log
+screenshots/
+
+# Temporary / single-day flags
+.skip_today
+
+# Node dependencies
+node_modules/
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+*.tmp
+.idea/
+.vscode/
