@@ -66,10 +66,24 @@ Your authenticated profile is saved in `.keka_profile/` and will run unattended!
 ---
 
 ### 5. Install Automated Schedule
-To automatically clock in at **09:15 AM** and clock out at **18:31 PM (06:31 PM)** Monday through Friday:
+
+#### 🐧 On Linux / macOS (systemd or cron)
 ```bash
 ./setup_cron.sh
 ```
+*(To remove anytime: `./setup_cron.sh remove`)*
+
+#### 🪟 On Windows (Task Scheduler)
+Open PowerShell (or Command Prompt) and run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup_tasks.ps1
+```
+*Or simply double-click `setup_tasks.bat`!*  
+*(To remove anytime: `powershell -ExecutionPolicy Bypass -File .\setup_tasks.ps1 -Remove`)*
+
+Both schedulers will automatically punch:
+- **09:15 AM**: Clock-In (Mon–Fri)
+- **18:31 PM (06:31 PM)**: Clock-Out (Mon–Fri)
 
 ---
 
@@ -83,9 +97,9 @@ To automatically clock in at **09:15 AM** and clock out at **18:31 PM (06:31 PM)
 | `npm run team` | **Team Status** | Displays live attendance table of your entire team |
 | `npm run skip` | **Skip Today** | Skips automated clock-in/out for today only |
 | `npm run unskip` | **Cancel Skip** | Re-enables automated clock-in/out for today |
-| `npm run pause` | **Pause Timers** | Pauses all automated system timers (e.g. for long vacations) |
-| `npm run resume` | **Resume Timers** | Resumes automated system timers |
-| `./setup_cron.sh remove` | **Uninstall** | Uninstalls all systemd timers and cron jobs |
+| `npm run pause` | **Pause Timers** | Pauses all automated timers/tasks (e.g. for long vacations) |
+| `npm run resume` | **Resume Timers** | Resumes automated timers/tasks |
+| `npm run login` | **Session Login** | Interactive browser login to save session |
 
 ---
 

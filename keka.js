@@ -19,7 +19,12 @@ function getChromePath(cfg = {}) {
   if (cfg.chrome_path && fs.existsSync(cfg.chrome_path)) return cfg.chrome_path;
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
 
+  const localAppData = process.env.LOCALAPPDATA || '';
+  const progFiles = process.env.PROGRAMFILES || 'C:\\Program Files';
+  const progFilesX86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+
   const candidates = [
+    // Linux / Thorium / Chrome / Brave
     '/home/jerry/.local/bin/google-chrome',
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
@@ -27,23 +32,38 @@ function getChromePath(cfg = {}) {
     '/usr/bin/chromium-browser',
     '/usr/bin/brave-browser',
     '/snap/bin/chromium',
+    // macOS
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
     '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    // Windows
+    path.join(progFiles, 'Google\\Chrome\\Application\\chrome.exe'),
+    path.join(progFilesX86, 'Google\\Chrome\\Application\\chrome.exe'),
+    path.join(localAppData, 'Google\\Chrome\\Application\\chrome.exe'),
+    path.join(progFiles, 'Microsoft\\Edge\\Application\\msedge.exe'),
+    path.join(progFilesX86, 'Microsoft\\Edge\\Application\\msedge.exe'),
+    path.join(localAppData, 'Microsoft\\Edge\\Application\\msedge.exe'),
+    path.join(progFiles, 'BraveSoftware\\Brave-Browser\\Application\\brave.exe'),
+    path.join(localAppData, 'BraveSoftware\\Brave-Browser\\Application\\brave.exe'),
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
   ];
 
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
+    if (candidate && fs.existsSync(candidate)) return candidate;
   }
 
   try {
-    const which = execSync('which google-chrome || which chromium || which brave || which google-chrome-stable', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().split('\n')[0];
+    const cmd = process.platform === 'win32'
+      ? 'where chrome || where msedge || where brave'
+      : 'which google-chrome || which chromium || which brave || which google-chrome-stable';
+    const which = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().split(/\r?\n/)[0];
     if (which && fs.existsSync(which)) return which;
   } catch (e) {}
 
-  return '/usr/bin/google-chrome';
+  return process.platform === 'win32' ? 'chrome.exe' : '/usr/bin/google-chrome';
 }
 
 // Ensure screenshots directory exists
@@ -75,12 +95,37 @@ function log(message, level = 'INFO') {
 
 function notify(title, message, urgency = 'normal') {
   try {
-    spawn('notify-send', ['-u', urgency, title, message], {
-      detached: true,
-      stdio: 'ignore'
-    }).unref();
+    if (process.platform === 'win32') {
+      const escapedTitle = title.replace(/'/g, "''");
+      const escapedMsg = message.replace(/'/g, "''");
+      const psScript = `
+        [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
+        $notify = New-Object System.Windows.Forms.NotifyIcon;
+        $notify.Icon = [System.Drawing.SystemIcons]::Information;
+        $notify.BalloonTipTitle = '${escapedTitle}';
+        $notify.BalloonTipText = '${escapedMsg}';
+        $notify.Visible = $True;
+        $notify.ShowBalloonTip(5000);
+      `;
+      spawn('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', psScript], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+    } else if (process.platform === 'darwin') {
+      const escapedTitle = title.replace(/"/g, '\\"');
+      const escapedMsg = message.replace(/"/g, '\\"');
+      spawn('osascript', ['-e', `display notification "${escapedMsg}" with title "${escapedTitle}"`], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+    } else {
+      spawn('notify-send', ['-u', urgency, title, message], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+    }
   } catch (err) {
-    // Ignore notification error on headless systems
+    // Ignore notification error on headless / restricted systems
   }
 }
 
@@ -217,15 +262,23 @@ async function handlePunch(action, noJitter = false) {
   const actionName = action === 'in' ? 'Clock-In' : 'Clock-Out';
   const todayStr = getLocalTimestamp().substring(0, 10);
   const skipFlagPath = path.join(BASE_DIR, '.skip_today');
+  const pauseFlagPath = path.join(BASE_DIR, '.paused');
 
-  // 1. Check if single-day skip is active
+  // 1. Check if global pause is active
+  if (fs.existsSync(pauseFlagPath)) {
+    log(`SKIPPED: Automation is currently PAUSED (.paused flag is active). Skipping ${actionName}.`);
+    if (cfg.notify_desktop !== false) notify('Keka Paused', `Automation is paused. Skipping ${actionName}.`);
+    return;
+  }
+
+  // 2. Check if single-day skip is active
   if (fs.existsSync(skipFlagPath)) {
     log(`SKIPPED: .skip_today flag is active. Skipping ${actionName} for today (${todayStr}).`);
     if (cfg.notify_desktop !== false) notify('Keka Skipped', `Skipped ${actionName} for today.`);
     return;
   }
 
-  // 2. Check if specific date is in skip_dates list in config.json
+  // 3. Check if specific date is in skip_dates list in config.json
   const skipDates = cfg.skip_dates || [];
   if (skipDates.includes(todayStr)) {
     log(`SKIPPED: Date ${todayStr} is in skip_dates. Skipping ${actionName}.`);
@@ -663,22 +716,36 @@ async function main() {
       break;
     }
     case 'pause':
-      try {
-        execSync('systemctl --user stop keka-clockin.timer keka-clockout.timer');
-        console.log('\n⏸️ Timers paused! Automation is temporarily stopped.');
-        console.log('To resume, run: node keka.js resume\n');
-      } catch (e) {
-        console.error('Failed pausing timers:', e.message);
+      fs.writeFileSync(path.join(BASE_DIR, '.paused'), 'paused\n', 'utf8');
+      if (process.platform === 'win32') {
+        try {
+          execSync('schtasks /Change /TN "KekaClockIn" /DISABLE >nul 2>&1', { stdio: 'ignore' });
+          execSync('schtasks /Change /TN "KekaClockOut" /DISABLE >nul 2>&1', { stdio: 'ignore' });
+        } catch (e) {}
+      } else if (process.platform === 'linux') {
+        try {
+          execSync('systemctl --user stop keka-clockin.timer keka-clockout.timer 2>/dev/null || true', { stdio: 'ignore' });
+        } catch (e) {}
       }
+      console.log('\n⏸️ Timers paused! Automation is temporarily stopped.');
+      console.log('To resume, run: node keka.js resume\n');
       break;
-    case 'resume':
-      try {
-        execSync('systemctl --user start keka-clockin.timer keka-clockout.timer');
-        console.log('\n▶️ Timers resumed! Attendance automation is active.\n');
-      } catch (e) {
-        console.error('Failed resuming timers:', e.message);
+    case 'resume': {
+      const pausedPath = path.join(BASE_DIR, '.paused');
+      if (fs.existsSync(pausedPath)) fs.unlinkSync(pausedPath);
+      if (process.platform === 'win32') {
+        try {
+          execSync('schtasks /Change /TN "KekaClockIn" /ENABLE >nul 2>&1', { stdio: 'ignore' });
+          execSync('schtasks /Change /TN "KekaClockOut" /ENABLE >nul 2>&1', { stdio: 'ignore' });
+        } catch (e) {}
+      } else if (process.platform === 'linux') {
+        try {
+          execSync('systemctl --user start keka-clockin.timer keka-clockout.timer 2>/dev/null || true', { stdio: 'ignore' });
+        } catch (e) {}
       }
+      console.log('\n▶️ Timers resumed! Attendance automation is active.\n');
       break;
+    }
     default:
       console.log(`
 Keka Attendance Automation for the GOAT Jerry
