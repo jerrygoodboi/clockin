@@ -113,11 +113,11 @@ Sample output:
 ----------------------------------------------------------------------
   STATUS       | NAME                         | ROLE               | EMP ID
 ----------------------------------------------------------------------
-  🟢 IN        |    Akshay Krishna Krishnadas | Software Intern    | #425
-  🔴 OUT       | ⭐ Jerry Ron Sunny            | Software Intern    | #427
-  🟢 IN        |    Maya K C                  | Software Intern    | #420
-  🔴 OUT       |    Nandana Kariat            | Software Intern    | #428
-  🔴 OUT       |    Rithu Smera Karanipadath  | Software Intern    | #426
+  🟢 IN        |    A                         | Software Intern    | #425
+  🔴 OUT       | ⭐ YOU                       | Software Intern    | #427
+  🟢 IN        |    C                         | Software Intern    | #420
+  🔴 OUT       |    D                         | Software Intern    | #428
+  🔴 OUT       |    E                         | Software Intern    | #426
 ----------------------------------------------------------------------
 
 📸 Team snapshot saved: screenshots/team_status_2026-09-04_18-46-34.png
