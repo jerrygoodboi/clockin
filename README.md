@@ -162,12 +162,3 @@ Sample output:
 
 ---
 
-## 🛡️ Privacy & Security
-
-- **Zero Credentials Stored in Plaintext**: Passwords and 2FA secrets are never saved in code or config files.
-- **Ignored Artifacts**: `.keka_profile/`, `config.json`, `keka.log`, and `screenshots/` are strictly ignored by `.gitignore` to prevent leaking sensitive session data or company information.
-
----
-
-## 📄 License
-MIT License. Created with ❤️ for seamless workforce productivity.
