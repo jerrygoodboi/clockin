@@ -1,5 +1,5 @@
 {
-  "subdomain": "YOUR_COMPANY_SUBDOMAIN",
+  "subdomain": "4labs",
   "chrome_path": "",
   "random_jitter_minutes": 2,
   "notify_desktop": true,
